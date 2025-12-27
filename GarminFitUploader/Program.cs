@@ -26,8 +26,16 @@ if (string.IsNullOrEmpty(username))
 if (string.IsNullOrEmpty(password))
 {
     Console.Write("Garmin Password: ");
-    password = ReadPassword();
-    Console.WriteLine();
+    // Check if console is interactive
+    if (Console.IsInputRedirected)
+    {
+        password = Console.ReadLine() ?? string.Empty;
+    }
+    else
+    {
+        password = ReadPassword();
+        Console.WriteLine();
+    }
 }
 
 if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
