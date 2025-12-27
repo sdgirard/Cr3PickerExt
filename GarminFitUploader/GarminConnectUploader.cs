@@ -60,18 +60,29 @@ public class GarminConnectUploader : IDisposable
             var content = new FormUrlEncodedContent(loginData);
             response = await _httpClient.PostAsync(loginPostUrl, content);
 
-            // Check if login was successful by looking at response
+            // Check if login was successful
             var responseContent = await response.Content.ReadAsStringAsync();
             
-            if (responseContent.Contains("error") || responseContent.Contains("invalid"))
+            // Check for authentication failure indicators
+            // Successful login typically results in a ticket and redirect
+            if (!response.IsSuccessStatusCode || 
+                responseContent.Contains("\"error\":") || 
+                responseContent.Contains("invalid-credentials") ||
+                responseContent.Contains("LOGIN_FAILED"))
             {
-                Console.WriteLine("Authentication failed: Invalid credentials");
+                Console.WriteLine("Authentication failed: Invalid credentials or login error");
                 return false;
             }
 
             // Step 4: Complete the login flow by accessing the modern site
             response = await _httpClient.GetAsync(ModernUrl);
-            response.EnsureSuccessStatusCode();
+            
+            // Verify we can access the modern site
+            if (!response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("Authentication failed: Could not access Garmin Connect");
+                return false;
+            }
 
             _isAuthenticated = true;
             Console.WriteLine("Authentication successful!");
@@ -149,10 +160,11 @@ public class GarminConnectUploader : IDisposable
                         };
                     }
                 }
-                catch (JsonException)
+                catch (JsonException ex)
                 {
-                    // If we can't parse the response, still consider it successful
-                    Console.WriteLine("Upload successful but couldn't parse activity ID");
+                    // Log the parsing error but still consider upload successful
+                    Console.WriteLine($"Upload successful but couldn't parse activity ID: {ex.Message}");
+                    Console.WriteLine($"Response content: {responseContent.Substring(0, Math.Min(500, responseContent.Length))}");
                 }
 
                 return new UploadResult
